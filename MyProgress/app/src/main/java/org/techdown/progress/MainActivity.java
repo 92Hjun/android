@@ -1,89 +1,142 @@
 package org.techdown.progress;
 
-import android.app.ProgressDialog;
+import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ProgressBar;
-import android.widget.SeekBar;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
-    EditText editText;
+
     ProgressBar progressBar;
 
+    Handler handler = new Handler();
+
+    CompletionThread completionThread;
+
+
+    String msg = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        editText = (EditText) findViewById(R.id.editText);
 
-        // 프로그레스바 객체 찾기
         progressBar = (ProgressBar) findViewById(R.id.progressBar);
-
         Button button = (Button) findViewById(R.id.button);
+
         button.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
+            public void onClick(View v) {
 
-                // 입력 데이터 찾기
-                String inputStr = editText.getText().toString().trim();
+                /* handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        ProgressThread thread = new ProgressThread();
+                        thread.start();
+                    }
+                },5000);*/
+                ProgressTask task = new ProgressTask();
+                task.execute("시작");
 
-                // 입력데이터 int 변환
-                int number = Integer.parseInt(inputStr);
-
-                // 프로그레스바에 데이터 저장
-                progressBar.setProgress(number);
-            }
-        });
-        Button button2 = (Button) findViewById(R.id.button2);
-        button2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-               showProgressDialog();
-            }
-        });
-
-        SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
-        // seekBar가 변경될때 실행시키는 메소드
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            // 변경될때 호출
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                editText.setText(String.valueOf(i));
-            }
-
-            @Override
-            // 변경되기 시작시에 호출
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            // 변경되고 종료시에 호출
-            public void onStopTrackingTouch(SeekBar seekBar) {
 
             }
         });
+        completionThread = new CompletionThread();
+        completionThread.start();
 
     }
 
+    // AsyncTask1
+    class ProgressTask extends AsyncTask<String, Integer, Integer> {
+        int value = 0;
 
-    // 프로그레스바 알림창
-    public void showProgressDialog() {
-        // 프로그레스바 생성
-        ProgressDialog dialog = new ProgressDialog(this);
 
-        // 프로그레스바 스타일 지정
-        dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        @Override
+        // 스레드 내부 코드 입력 String... < 가변길이 문자열타입
+        protected Integer doInBackground(String... params) {
+            while (true) {
+                if (value > 100) {
+                    break;
+                }
+                value += 1;
+                // 메소드가 사용되면 onProgressUpdate호출한다.
+                publishProgress(value);
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            return value;
+        }
 
-        // 프로그레스바 알림창 확인
-        dialog.setMessage("데이터 확인중...");
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            super.onProgressUpdate(values);
+            progressBar.setProgress(values[0].intValue());
+        }
 
-        // 프로그레스바 보여주기.
-        dialog.show();
+        @Override
+        // 완료되면 실행한다.
+        protected void onPostExecute(Integer integer) {
+            super.onPostExecute(integer);
+
+            Toast.makeText(getApplicationContext(),"완료됨", Toast.LENGTH_SHORT).show();
+
+        }
     }
+
+    // 스레드1
+    class ProgressThread extends  Thread {
+        int value = 0;
+        @Override
+        public void run() {
+            while (true) {
+                if (value > 100) {
+                    break;
+                }
+                value += 1;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBar.setProgress(value);
+                    }
+                });
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            completionThread.cimpletionHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    msg = "OK";
+
+                    Log.d("MainActivity", "메시지 : " + msg);
+                }
+            });
+        }
+    }
+
+    class CompletionThread extends  Thread {
+
+        public Handler cimpletionHandler = new Handler();
+
+        public void run() {
+
+            Looper.prepare();
+            Looper.loop();
+
+        }
+    }
+
 }
